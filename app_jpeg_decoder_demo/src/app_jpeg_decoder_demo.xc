@@ -55,7 +55,8 @@ void receive_rgb_and_centered(chanend c_rgb, chanend c_server, unsigned fb_handl
 	unsigned buf[LCD_ROW_WORDS];
 	unsigned imgHeight, imgWidth, MCUheight, MCUwidth;
 	unsigned startRow, startCol;
-	short rgb;
+	unsigned short rgb;
+int count=0;
 
 	// Read image dimensions and MCU dimensions from the channel
 	c_rgb :> imgHeight;
@@ -89,6 +90,7 @@ void receive_rgb_and_centered(chanend c_rgb, chanend c_server, unsigned fb_handl
 						int bufCol = startCol+(MCUcol*MCUwidth)+c;
 						if (bufCol<startCol+imgWidth){
 							c_rgb :> rgb;
+count++;
 							if (bufCol%2==0)
 								buf[bufCol/2] = rgb;
 							else

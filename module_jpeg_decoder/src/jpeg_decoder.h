@@ -1,4 +1,4 @@
-unsigned short YCbCr_to_RGB565( short, short, short);
+unsigned short YCbCr_to_RGB565( unsigned short, unsigned short, unsigned short);
 unsigned char getByte(chanend);
 unsigned char getDataArray(chanend, unsigned, unsigned char []);
 int jpeg_decoder(chanend, chanend);
@@ -6,7 +6,6 @@ int jpeg_decoder(chanend, chanend);
 extern void init_idct (void);
 extern void idct(short a[]);
 
-#define MAX_WIDTH 480	// width of LCD screen
 #define HUF_TBL_SIZE 256
 
 enum JpegMarkers {

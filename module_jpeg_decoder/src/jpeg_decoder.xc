@@ -14,9 +14,8 @@
 
 /* Write decoded RGB565 values in row-order to channel */
 
-void write_rgb565_to_channel( chanend chan_rgb565, unsigned row, unsigned col, short rgb[], unsigned char samp_fact, unsigned height, unsigned width){
+void write_rgb565_to_channel( chanend chan_rgb565, unsigned row, unsigned col, unsigned short rgb[], unsigned char samp_fact, unsigned height, unsigned width){
 	unsigned r,c,MCUwidth,MCUheight;
-//	unsigned short temp[16][MAX_WIDTH];
 
 	switch (samp_fact){
 	case YUV420: {MCUwidth = 16; MCUheight = 16; break;}
@@ -37,10 +36,8 @@ void write_rgb565_to_channel( chanend chan_rgb565, unsigned row, unsigned col, s
 		for (c=0;c<MCUwidth;c++){
 			if ((col+c)<width && (row+r)<height){
 				chan_rgb565 <: rgb[r*MCUwidth+c];
-//printhexln(rgb[r*MCUwidth+c]);
 			}
 		}
-
 }
 
 
@@ -343,20 +340,50 @@ static void DecodeChannel(chanend c_jpeg, short channel[64],
 
 
 //colour space conversion
-inline unsigned short YCbCr_to_RGB565( short Y, short Cb, short Cr )
+
+#define bits 5
+#define const_a 1.402
+#define const_b 0.34414
+#define const_c 0.71414
+#define const_d 1.722
+#define const_A (int)(const_a*(1<<bits))
+#define const_B (int)(const_b*(1<<bits))
+#define const_C (int)(const_c*(1<<bits))
+#define const_D (int)(const_d*(1<<bits))
+
+
+unsigned short YCbCr_to_RGB565(unsigned short Y, unsigned short Cb, unsigned short Cr )
 {
-  unsigned short r,g,b;
-
-  r = Y+1402*(Cr-128)/1000;
-  g = Y-34414*(Cb-128)/100000-71414*(Cr-128)/100000;
-  b = Y+1772*(Cb-128)/1000;
-
-  r = (r>>3);
-  g = (g>>2);
-  b = (b>>3);
-
+  register int y = Y << bits;
+  register int cb = Cb - 128;
+  register int cr = Cr - 128;
+  int r = (y + const_A * cr + 128) >> (bits+3);
+  int g = (y - const_B * cb - const_C * cr + 128) >> (bits+2);
+  int b = (y + const_D * cb + 128) >> (bits+3);
+  r = (r>>5)?((r<0)?0:0x1f):r;
+  g = (g>>6)?((g<0)?0:0x3f):g;
+  b = (b>>5)?((b<0)?0:0x1f):b;
   return r|(g<<5)|(b<<11);
 }
+
+
+/*  output same as above
+inline unsigned char Clip(int x) {
+    return (x < 0) ? 0 : ((x > 0xFF) ? 0xFF : (unsigned char) x);
+}
+
+
+inline unsigned short YCbCr_to_RGB565( unsigned short Y, unsigned short Cb, unsigned short Cr )
+{
+  register int y = Y << 8;
+  register int cb = Cb - 128;
+  register int cr = Cr - 128;
+  int r = Clip((y            + 359 * cr + 128) >> 8);
+  int g = Clip((y -  88 * cb - 183 * cr + 128) >> 8);
+  int b = Clip((y + 454 * cb            + 128) >> 8);
+  return (unsigned short)((r >> 3) & 0x1F) | ((int)((g >> 2) & 0x3F) << 5) | ((int)((b >> 3) & 0x1F) << 11);
+}
+*/
 
 //read the data out of the stream mcu by mcu
 #pragma unsafe arrays
@@ -367,7 +394,7 @@ int DecodeScan(chanend c_jpeg, chanend chan_rgb565, unsigned offset,short res_in
   short restart_marker, prevDC = 0, prevDCCr = 0, prevDCCb = 0;
   unsigned mcu=0, mcu_count;	// mcu is minimum coded unit.
   unsigned col = 0, row = 0;
-  short RGB[64*4];	// Second dimension: 64*4 used for 4:2:0; 64*2 used for 4:2:2; 64 used for 4:4:4.
+  unsigned short RGB[64*4];	// Second dimension: 64*4 used for 4:2:0; 64*2 used for 4:2:2; 64 used for 4:4:4.
 
 
   if (components.sampling_factors[0]==YUV420)  // 4:2:0 chroma subsampling
@@ -423,7 +450,7 @@ int DecodeScan(chanend c_jpeg, chanend chan_rgb565, unsigned offset,short res_in
     //now reconstruct the rgb
     for (unsigned i = 0; i < 64; i++) {
 
-    	short y,Y0,Y1,Y2,Y3,Cb,Cr;
+    	unsigned short y,Y0,Y1,Y2,Y3,Cb,Cr;
     	unsigned yy, r;
 
     	if (components.sampling_factors[0]==YUV420){  // 4:2:0 chroma subsampling
